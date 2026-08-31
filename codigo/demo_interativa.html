@@ -1,0 +1,717 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mochila 0/1 — VNS vs Algoritmo Genético</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.5.1/chart.umd.min.js"></script>
+<style>
+  :root{
+    --navy:#1E2761;
+    --navy-deep:#141b49;
+    --navy-soft:#2b3680;
+    --coral:#E74C3C;
+    --coral-soft:#f8d9d5;
+    --ice:#CADCFC;
+    --bg:#F4F6FB;
+    --panel:#FFFFFF;
+    --ink:#1B1F2A;
+    --muted:#5B6479;
+    --line:#E3E7F1;
+    --good:#1E8E5A;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    font-family:'Inter',sans-serif;
+    background:var(--bg);
+    color:var(--ink);
+    min-height:100vh;
+  }
+  h1,h2,h3{font-family:'Fraunces',serif; margin:0;}
+
+  .app{
+    display:grid;
+    grid-template-columns:320px 1fr;
+    min-height:100vh;
+  }
+
+  /* ---------- SIDEBAR ---------- */
+  .sidebar{
+    background:var(--navy);
+    color:#fff;
+    padding:28px 24px 32px;
+    display:flex;
+    flex-direction:column;
+    gap:22px;
+  }
+  .brand{margin-bottom:4px;}
+  .brand .kicker{
+    font-size:11.5px; letter-spacing:0.06em; color:var(--ice); font-weight:600;
+  }
+  .brand h1{font-size:23px; line-height:1.25; margin-top:6px; font-weight:600;}
+
+  .field label{
+    display:block; font-size:12.5px; color:var(--ice); margin-bottom:8px; font-weight:500;
+  }
+  select, input[type=number]{
+    width:100%; padding:10px 12px; border-radius:8px; border:1px solid rgba(255,255,255,0.18);
+    background:rgba(255,255,255,0.08); color:#fff; font-family:'Inter',sans-serif; font-size:14px;
+  }
+  select option{color:#111;}
+
+  .seg{
+    display:flex; background:rgba(255,255,255,0.08); border-radius:9px; padding:3px; gap:3px;
+  }
+  .seg button{
+    flex:1; border:none; background:transparent; color:var(--ice); padding:9px 4px;
+    border-radius:6px; font-family:'Inter',sans-serif; font-size:13px; font-weight:600; cursor:pointer;
+    transition:background .15s, color .15s;
+  }
+  .seg button.active{background:#fff; color:var(--navy);}
+
+  .slider-row{display:flex; justify-content:space-between; align-items:baseline; margin-bottom:6px;}
+  .slider-row label{margin:0; font-size:12.5px; color:var(--ice); font-weight:500;}
+  .slider-row .val{font-size:13px; font-weight:700; color:#fff;}
+  input[type=range]{
+    width:100%; accent-color:var(--coral); height:4px;
+  }
+
+  .algo-block{
+    border-left:2px solid rgba(255,255,255,0.15); padding-left:14px;
+    display:flex; flex-direction:column; gap:14px;
+  }
+  .algo-block.vns{border-color:var(--ice);}
+  .algo-block.ag{border-color:var(--coral);}
+  .algo-block .tag{font-size:11px; font-weight:700; letter-spacing:0.04em;}
+  .algo-block.vns .tag{color:var(--ice);}
+  .algo-block.ag .tag{color:#ffb3a7;}
+
+  .seed-row{display:flex; gap:8px; align-items:flex-end;}
+  .seed-row .field{flex:1;}
+  .dice{
+    background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.18); color:#fff;
+    border-radius:8px; width:40px; height:40px; font-size:17px; cursor:pointer;
+  }
+  .dice:hover{background:rgba(255,255,255,0.18);}
+
+  .run-btn{
+    margin-top:6px; background:var(--coral); color:#fff; border:none; padding:14px;
+    border-radius:9px; font-family:'Inter',sans-serif; font-size:15px; font-weight:700;
+    cursor:pointer; transition:background .15s, transform .1s;
+  }
+  .run-btn:hover{background:#d5432f;}
+  .run-btn:active{transform:scale(0.98);}
+  .run-btn:disabled{background:#8b5850; cursor:not-allowed;}
+
+  .sidebar-foot{
+    margin-top:auto; font-size:11.5px; color:#8f9ac2; line-height:1.5; padding-top:10px;
+    border-top:1px solid rgba(255,255,255,0.12);
+  }
+
+  /* ---------- MAIN ---------- */
+  main{padding:32px 40px 48px; max-width:1180px;}
+  .main-head{margin-bottom:26px;}
+  .main-head .eyebrow{font-size:12.5px; color:var(--muted); font-weight:600;}
+  .main-head h2{font-size:26px; margin-top:4px;}
+  .main-head p{color:var(--muted); font-size:14.5px; margin-top:6px; max-width:640px; line-height:1.5;}
+
+  .section{margin-bottom:34px;}
+  .section-title{
+    font-size:13.5px; font-weight:700; color:var(--ink); margin-bottom:14px;
+    display:flex; align-items:center; gap:10px;
+  }
+  .section-title .status{
+    font-size:11.5px; font-weight:600; color:var(--muted); background:var(--line);
+    padding:3px 10px; border-radius:20px;
+  }
+  .section-title .status.running{color:#fff; background:var(--coral);}
+  .section-title .status.done{color:#fff; background:var(--good);}
+
+  /* mochilas */
+  .bags{display:grid; gap:20px;}
+  .bags.single{grid-template-columns:1fr;}
+  .bags.compare{grid-template-columns:1fr 1fr;}
+  .bag-card{
+    background:var(--panel); border-radius:14px; padding:20px 22px; border:1px solid var(--line);
+  }
+  .bag-card .bag-head{display:flex; justify-content:space-between; align-items:baseline; margin-bottom:14px;}
+  .bag-card .bag-head h3{font-size:16px; font-family:'Inter',sans-serif; font-weight:700;}
+  .bag-card.vns .bag-head h3{color:var(--navy);}
+  .bag-card.ag .bag-head h3{color:var(--coral);}
+  .bag-card .bag-head .weight{font-size:12.5px; color:var(--muted); font-variant-numeric:tabular-nums;}
+
+  .capacity-track{
+    width:100%; height:34px; background:#EEF1F8; border-radius:8px; overflow:hidden;
+    border:1px solid var(--line); position:relative;
+  }
+  .capacity-fill{
+    height:100%; display:flex; align-items:center; transition:width .12s linear;
+  }
+  .bag-card.vns .capacity-fill{background:linear-gradient(90deg, var(--navy), var(--navy-soft));}
+  .bag-card.ag .capacity-fill{background:linear-gradient(90deg, var(--coral), #f0715f);}
+
+  .items-grid{
+    display:flex; flex-wrap:wrap; gap:4px; margin-top:14px; min-height:34px;
+  }
+  .item-block{
+    height:22px; border-radius:4px; opacity:0.92;
+  }
+  .bag-card.vns .item-block{background:var(--navy-soft);}
+  .bag-card.ag .item-block{background:#f0715f;}
+
+  .bag-stats{display:flex; gap:22px; margin-top:16px; font-size:12.5px; color:var(--muted);}
+  .bag-stats b{color:var(--ink); font-variant-numeric:tabular-nums;}
+
+  /* chart */
+  .chart-card{
+    background:var(--panel); border-radius:14px; padding:20px 22px; border:1px solid var(--line);
+  }
+  .chart-wrap{height:280px;}
+
+  /* stat cards */
+  .stat-grid{display:grid; grid-template-columns:repeat(4,1fr); gap:16px;}
+  .stat-card{
+    background:var(--panel); border-radius:14px; padding:18px 20px; border:1px solid var(--line);
+  }
+  .stat-card .label{font-size:12px; color:var(--muted); font-weight:500;}
+  .stat-card .value{font-size:26px; font-weight:700; margin-top:6px; font-variant-numeric:tabular-nums; color:var(--ink);}
+  .stat-card .value.coral{color:var(--coral);}
+  .stat-card .value.navy{color:var(--navy);}
+  .stat-card .sub{font-size:11.5px; color:var(--muted); margin-top:3px;}
+
+  .empty-hint{
+    color:var(--muted); font-size:14px; padding:40px 0; text-align:center;
+    background:var(--panel); border:1px dashed var(--line); border-radius:14px;
+  }
+
+  @media (max-width: 900px){
+    .app{grid-template-columns:1fr;}
+    .sidebar{position:static;}
+    .bags.compare{grid-template-columns:1fr;}
+    .stat-grid{grid-template-columns:1fr 1fr;}
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <!-- ===================== SIDEBAR ===================== -->
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="kicker">DEMONSTRAÇÃO AO VIVO</div>
+      <h1>Mochila 0/1<br>VNS vs Algoritmo Genético</h1>
+    </div>
+
+    <div class="field">
+      <label for="instanceSelect">Instância</label>
+      <select id="instanceSelect"></select>
+    </div>
+
+    <div class="field">
+      <label>Modo</label>
+      <div class="seg" id="modeSeg">
+        <button data-mode="vns" class="active">VNS</button>
+        <button data-mode="ag">AG</button>
+        <button data-mode="compare">Comparar</button>
+      </div>
+    </div>
+
+    <div class="algo-block vns" id="vnsControls">
+      <div class="tag">VNS — PARÂMETROS</div>
+      <div>
+        <div class="slider-row"><label>k_max (vizinhanças)</label><span class="val" id="kMaxVal">3</span></div>
+        <input type="range" id="kMax" min="2" max="6" step="1" value="3">
+      </div>
+    </div>
+
+    <div class="algo-block ag" id="agControls">
+      <div class="tag">AG — PARÂMETROS</div>
+      <div>
+        <div class="slider-row"><label>Tamanho da população</label><span class="val" id="popSizeVal">50</span></div>
+        <input type="range" id="popSize" min="10" max="150" step="10" value="50">
+      </div>
+    </div>
+
+    <div class="field">
+      <div class="slider-row"><label>Iterações / Gerações</label><span class="val" id="iterVal">100</span></div>
+      <input type="range" id="iterations" min="20" max="300" step="10" value="100">
+    </div>
+
+    <div class="seed-row">
+      <div class="field">
+        <label for="seed">Semente aleatória</label>
+        <input type="number" id="seed" value="42">
+      </div>
+      <button class="dice" id="diceBtn" title="Sortear nova semente">🎲</button>
+    </div>
+
+    <button class="run-btn" id="runBtn">▶ Executar</button>
+
+    <div class="sidebar-foot">
+      9 instâncias de referência (P01–P08 + knapPI_1_100_1000_1). Algoritmos rodam 100% no navegador — os mesmos VNS e AG implementados em Python neste trabalho.
+    </div>
+  </aside>
+
+  <!-- ===================== MAIN ===================== -->
+  <main>
+    <div class="main-head">
+      <div class="eyebrow">PROBLEMA DA MOCHILA 0/1</div>
+      <h2>Painel de demonstração</h2>
+      <p>Escolha uma instância e os parâmetros ao lado, depois clique em Executar para ver os algoritmos empacotando a mochila e convergindo em tempo real.</p>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Mochila <span class="status" id="bagStatus">aguardando</span></div>
+      <div class="bags single" id="bagsWrap">
+        <div class="empty-hint">Configure os parâmetros e clique em "Executar" para começar.</div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Convergência <span class="status" id="chartStatus">—</span></div>
+      <div class="chart-card">
+        <div class="chart-wrap"><canvas id="convChart"></canvas></div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Resultado</div>
+      <div class="stat-grid" id="statGrid">
+        <div class="stat-card"><div class="label">Valor ótimo conhecido</div><div class="value" id="statOptimal">—</div><div class="sub">referência da literatura</div></div>
+        <div class="stat-card"><div class="label">Melhor valor encontrado</div><div class="value navy" id="statFound">—</div><div class="sub" id="statFoundSub">&nbsp;</div></div>
+        <div class="stat-card"><div class="label">Gap em relação ao ótimo</div><div class="value coral" id="statGap">—</div><div class="sub" id="statGapSub">&nbsp;</div></div>
+        <div class="stat-card"><div class="label">Tempo de execução</div><div class="value" id="statTime">—</div><div class="sub" id="statTimeSub">&nbsp;</div></div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script>
+/* ============================================================
+   DADOS DAS 9 INSTÂNCIAS (mesmos arquivos usados no trabalho)
+============================================================ */
+const INSTANCES = [{"name": "P01", "n": 10, "capacity": 165, "weights": [23, 31, 29, 44, 53, 38, 63, 85, 89, 82], "profits": [92, 57, 49, 68, 60, 43, 67, 84, 87, 72], "optimal": 309}, {"name": "P02", "n": 5, "capacity": 26, "weights": [12, 7, 11, 8, 9], "profits": [24, 13, 23, 15, 16], "optimal": 51}, {"name": "P03", "n": 6, "capacity": 190, "weights": [56, 59, 80, 64, 75, 17], "profits": [50, 50, 64, 46, 50, 5], "optimal": 150}, {"name": "P04", "n": 7, "capacity": 50, "weights": [31, 10, 20, 19, 4, 3, 6], "profits": [70, 20, 39, 37, 7, 5, 10], "optimal": 107}, {"name": "P05", "n": 8, "capacity": 104, "weights": [25, 35, 45, 5, 25, 3, 2, 2], "profits": [350, 400, 450, 20, 70, 8, 5, 5], "optimal": 900}, {"name": "P06", "n": 7, "capacity": 170, "weights": [41, 50, 49, 59, 55, 57, 60], "profits": [442, 525, 511, 593, 546, 564, 617], "optimal": 1735}, {"name": "P07", "n": 15, "capacity": 750, "weights": [70, 73, 77, 80, 82, 87, 90, 94, 98, 106, 110, 113, 115, 118, 120], "profits": [135, 139, 149, 150, 156, 163, 173, 184, 192, 201, 210, 214, 221, 229, 240], "optimal": 1458}, {"name": "P08", "n": 24, "capacity": 6404180, "weights": [382745, 799601, 909247, 729069, 467902, 44328, 34610, 698150, 823460, 903959, 853665, 551830, 610856, 670702, 488960, 951111, 323046, 446298, 931161, 31385, 496951, 264724, 224916, 169684], "profits": [825594, 1677009, 1676628, 1523970, 943972, 97426, 69666, 1296457, 1679693, 1902996, 1844992, 1049289, 1252836, 1319836, 953277, 2067538, 675367, 853655, 1826027, 65731, 901489, 577243, 466257, 369261], "optimal": 13549094}, {"name": "knapPI_1_100_1000_1", "n": 100, "capacity": 995, "weights": [485, 326, 248, 421, 322, 795, 43, 845, 955, 252, 9, 901, 122, 94, 738, 574, 715, 882, 367, 984, 299, 433, 682, 72, 874, 138, 856, 145, 995, 529, 199, 277, 97, 719, 242, 107, 122, 70, 98, 600, 645, 267, 972, 895, 213, 748, 487, 923, 29, 674, 540, 554, 467, 46, 710, 553, 191, 724, 730, 988, 90, 340, 549, 196, 865, 678, 570, 936, 722, 651, 123, 431, 508, 585, 853, 642, 992, 725, 286, 812, 859, 663, 88, 179, 187, 619, 261, 846, 192, 261, 514, 886, 530, 849, 294, 799, 391, 330, 298, 790], "profits": [94, 506, 416, 992, 649, 237, 457, 815, 446, 422, 791, 359, 667, 598, 7, 544, 334, 766, 994, 893, 633, 131, 428, 700, 617, 874, 720, 419, 794, 196, 997, 116, 908, 539, 707, 569, 537, 931, 726, 487, 772, 513, 81, 943, 58, 303, 764, 536, 724, 789, 479, 142, 339, 641, 196, 494, 66, 824, 208, 711, 800, 314, 289, 401, 466, 689, 833, 225, 244, 849, 113, 379, 361, 65, 486, 686, 286, 889, 24, 491, 891, 90, 181, 214, 17, 472, 418, 419, 356, 682, 306, 201, 385, 952, 500, 194, 737, 324, 992, 224], "optimal": 9147}];
+
+/* ============================================================
+   RNG determinístico (mulberry32) — para reprodutibilidade
+============================================================ */
+function mulberry32(seed){
+  let s = seed >>> 0;
+  return function(){
+    s = (s + 0x6D2B79F5) | 0;
+    let t = Math.imul(s ^ (s >>> 15), 1 | s);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+function sampleIndices(n, k, rng){
+  const arr = Array.from({length:n}, (_,i)=>i);
+  const kk = Math.min(k, n);
+  for(let i=0;i<kk;i++){
+    const j = i + Math.floor(rng() * (n - i));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr.slice(0, kk);
+}
+
+/* ============================================================
+   NÚCLEO DO PROBLEMA (mesma lógica de knapsack_instance.py)
+============================================================ */
+function totalWeight(inst, x){ let s=0; for(let i=0;i<inst.n;i++) s += x[i]*inst.weights[i]; return s; }
+function totalProfit(inst, x){ let s=0; for(let i=0;i<inst.n;i++) s += x[i]*inst.profits[i]; return s; }
+function isFeasible(inst, x){ return totalWeight(inst, x) <= inst.capacity; }
+function fitness(inst, x){ return isFeasible(inst, x) ? totalProfit(inst, x) : 0; }
+
+/* ============================================================
+   REPARO GULOSO + CONSTRUÇÃO GULOSA (repair.py)
+============================================================ */
+function efficiency(inst, i){ return inst.weights[i] > 0 ? inst.profits[i] / inst.weights[i] : Infinity; }
+
+function repair(inst, x){
+  x = x.slice();
+  let w = totalWeight(inst, x);
+  if (w <= inst.capacity) return x;
+  const selected = [];
+  for(let i=0;i<inst.n;i++) if (x[i]===1) selected.push(i);
+  selected.sort((a,b) => efficiency(inst,a) - efficiency(inst,b));
+  for(const i of selected){
+    if (w <= inst.capacity) break;
+    x[i] = 0;
+    w -= inst.weights[i];
+  }
+  return x;
+}
+
+function greedyConstruct(inst){
+  const order = Array.from({length:inst.n}, (_,i)=>i)
+    .sort((a,b) => efficiency(inst,b) - efficiency(inst,a));
+  const x = new Array(inst.n).fill(0);
+  let w = 0;
+  for(const i of order){
+    if (w + inst.weights[i] <= inst.capacity){ x[i]=1; w += inst.weights[i]; }
+  }
+  return x;
+}
+
+/* ============================================================
+   VNS (vns.py)
+============================================================ */
+function shaking(inst, x, k, rng){
+  const x2 = x.slice();
+  for(const i of sampleIndices(inst.n, k, rng)) x2[i] = 1 - x2[i];
+  return repair(inst, x2);
+}
+
+function localSearchN1(inst, x, maxNoImprove=50){
+  x = x.slice();
+  let cur = fitness(inst, x);
+  let noImp = 0;
+  while (noImp < maxNoImprove){
+    let bestNeighbor = null, bestF = cur;
+    for(let i=0;i<inst.n;i++){
+      const cand = repair(inst, x.slice().map((v,j)=> j===i ? 1-v : v));
+      const f = fitness(inst, cand);
+      if (f > bestF){ bestF = f; bestNeighbor = cand; }
+    }
+    if (bestNeighbor){ x = bestNeighbor; cur = bestF; noImp = 0; }
+    else break;
+  }
+  return x;
+}
+
+function runVNS(inst, kMax, maxIterations, seed){
+  const rng = mulberry32(seed);
+  const t0 = performance.now();
+  let x = greedyConstruct(inst);
+  let bestFitness = fitness(inst, x);
+  const history = [{step:0, fitness:bestFitness, x:x.slice()}];
+  let k = 1;
+  for(let it=1; it<=maxIterations; it++){
+    const xs = shaking(inst, x, k, rng);
+    const xl = localSearchN1(inst, xs);
+    const fl = fitness(inst, xl);
+    if (fl > bestFitness){ x = xl; bestFitness = fl; k = 1; }
+    else { k += 1; if (k > kMax) k = 1; }
+    history.push({step:it, fitness:bestFitness, x:x.slice()});
+  }
+  const time = (performance.now() - t0) / 1000;
+  return {bestSolution:x, bestFitness, history, steps:maxIterations, time};
+}
+
+/* ============================================================
+   AG (ga.py)
+============================================================ */
+function randomIndividual(inst, rng){
+  const x = new Array(inst.n);
+  for(let i=0;i<inst.n;i++) x[i] = rng() < 0.5 ? 1 : 0;
+  return repair(inst, x);
+}
+function initPopulation(inst, popSize, rng){
+  const pop = [greedyConstruct(inst)];
+  while (pop.length < popSize) pop.push(randomIndividual(inst, rng));
+  return pop;
+}
+function tournamentSelection(pop, fitnesses, rng, k=3){
+  const idx = sampleIndices(pop.length, k, rng);
+  let winner = idx[0];
+  for(const i of idx) if (fitnesses[i] > fitnesses[winner]) winner = i;
+  return pop[winner];
+}
+function uniformCrossover(p1, p2, rng){
+  return p1.map((v,i) => rng() < 0.5 ? v : p2[i]);
+}
+function mutate(x, rate, rng){
+  return x.map(v => rng() < rate ? 1-v : v);
+}
+
+function runGA(inst, popSize, generations, seed, crossoverRate=0.9, mutationRate=0.02, tournamentK=3){
+  const rng = mulberry32(seed);
+  const t0 = performance.now();
+  let population = initPopulation(inst, popSize, rng);
+  let fitnesses = population.map(ind => fitness(inst, ind));
+  let bestIdx = fitnesses.indexOf(Math.max(...fitnesses));
+  let bestSolution = population[bestIdx].slice();
+  let bestFitness = fitnesses[bestIdx];
+  const history = [{step:0, fitness:bestFitness, x:bestSolution.slice()}];
+
+  for(let gen=1; gen<=generations; gen++){
+    const newPop = [bestSolution.slice()];
+    while (newPop.length < popSize){
+      const p1 = tournamentSelection(population, fitnesses, rng, tournamentK);
+      const p2 = tournamentSelection(population, fitnesses, rng, tournamentK);
+      let child = rng() < crossoverRate ? uniformCrossover(p1, p2, rng) : p1.slice();
+      child = mutate(child, mutationRate, rng);
+      child = repair(inst, child);
+      newPop.push(child);
+    }
+    population = newPop;
+    fitnesses = population.map(ind => fitness(inst, ind));
+    const genBestIdx = fitnesses.indexOf(Math.max(...fitnesses));
+    if (fitnesses[genBestIdx] > bestFitness){
+      bestFitness = fitnesses[genBestIdx];
+      bestSolution = population[genBestIdx].slice();
+    }
+    history.push({step:gen, fitness:bestFitness, x:bestSolution.slice()});
+  }
+  const time = (performance.now() - t0) / 1000;
+  return {bestSolution, bestFitness, history, steps:generations, time};
+}
+
+/* ============================================================
+   UI STATE + RENDER
+============================================================ */
+const els = {
+  instanceSelect: document.getElementById('instanceSelect'),
+  modeSeg: document.getElementById('modeSeg'),
+  vnsControls: document.getElementById('vnsControls'),
+  agControls: document.getElementById('agControls'),
+  kMax: document.getElementById('kMax'), kMaxVal: document.getElementById('kMaxVal'),
+  popSize: document.getElementById('popSize'), popSizeVal: document.getElementById('popSizeVal'),
+  iterations: document.getElementById('iterations'), iterVal: document.getElementById('iterVal'),
+  seed: document.getElementById('seed'), diceBtn: document.getElementById('diceBtn'),
+  runBtn: document.getElementById('runBtn'),
+  bagsWrap: document.getElementById('bagsWrap'),
+  bagStatus: document.getElementById('bagStatus'),
+  chartStatus: document.getElementById('chartStatus'),
+  statOptimal: document.getElementById('statOptimal'),
+  statFound: document.getElementById('statFound'),
+  statFoundSub: document.getElementById('statFoundSub'),
+  statGap: document.getElementById('statGap'),
+  statGapSub: document.getElementById('statGapSub'),
+  statTime: document.getElementById('statTime'),
+  statTimeSub: document.getElementById('statTimeSub'),
+};
+
+let mode = 'vns';
+let chart = null;
+let animToken = 0; // cancela animações antigas quando um novo run começa
+
+INSTANCES.forEach((inst, i) => {
+  const opt = document.createElement('option');
+  opt.value = i;
+  opt.textContent = `${inst.name}  ·  ${inst.n} itens`;
+  els.instanceSelect.appendChild(opt);
+});
+els.instanceSelect.value = 0;
+
+els.modeSeg.addEventListener('click', (e) => {
+  const btn = e.target.closest('button');
+  if (!btn) return;
+  mode = btn.dataset.mode;
+  [...els.modeSeg.children].forEach(b => b.classList.toggle('active', b === btn));
+  els.vnsControls.style.display = (mode === 'vns' || mode === 'compare') ? 'flex' : 'none';
+  els.agControls.style.display = (mode === 'ag' || mode === 'compare') ? 'flex' : 'none';
+});
+
+els.kMax.addEventListener('input', () => els.kMaxVal.textContent = els.kMax.value);
+els.popSize.addEventListener('input', () => els.popSizeVal.textContent = els.popSize.value);
+els.iterations.addEventListener('input', () => els.iterVal.textContent = els.iterations.value);
+els.diceBtn.addEventListener('click', () => { els.seed.value = Math.floor(Math.random()*100000); });
+
+function fmtInt(n){ return n.toLocaleString('pt-BR'); }
+
+function buildBagCard(key, title){
+  return `
+    <div class="bag-card ${key}" id="bagCard-${key}">
+      <div class="bag-head">
+        <h3>${title}</h3>
+        <span class="weight" id="bagWeight-${key}">peso 0 / 0</span>
+      </div>
+      <div class="capacity-track"><div class="capacity-fill" id="bagFill-${key}" style="width:0%"></div></div>
+      <div class="items-grid" id="bagItems-${key}"></div>
+      <div class="bag-stats">
+        <div>Itens na mochila: <b id="bagCount-${key}">0</b></div>
+        <div>Valor atual: <b id="bagValue-${key}">0</b></div>
+      </div>
+    </div>`;
+}
+
+function renderBagsSkeleton(){
+  if (mode === 'compare'){
+    els.bagsWrap.className = 'bags compare';
+    els.bagsWrap.innerHTML = buildBagCard('vns','VNS') + buildBagCard('ag','Algoritmo Genético');
+  } else if (mode === 'vns') {
+    els.bagsWrap.className = 'bags single';
+    els.bagsWrap.innerHTML = buildBagCard('vns','VNS');
+  } else {
+    els.bagsWrap.className = 'bags single';
+    els.bagsWrap.innerHTML = buildBagCard('ag','Algoritmo Genético');
+  }
+}
+
+function updateBag(inst, key, x, fVal){
+  const w = totalWeight(inst, x);
+  const pct = Math.min(100, (w / inst.capacity) * 100);
+  const fill = document.getElementById(`bagFill-${key}`);
+  const weightLbl = document.getElementById(`bagWeight-${key}`);
+  const itemsGrid = document.getElementById(`bagItems-${key}`);
+  const countLbl = document.getElementById(`bagCount-${key}`);
+  const valueLbl = document.getElementById(`bagValue-${key}`);
+  if (!fill) return;
+  fill.style.width = pct.toFixed(1) + '%';
+  weightLbl.textContent = `peso ${fmtInt(w)} / ${fmtInt(inst.capacity)}`;
+
+  let count = 0;
+  const blocks = [];
+  const totalGridWidth = 560; // px aproximados disponíveis
+  for(let i=0;i<inst.n;i++){
+    if (x[i] === 1){
+      count++;
+      const widthPct = Math.max(1.2, (inst.weights[i] / inst.capacity) * 100);
+      blocks.push(`<div class="item-block" style="width:${widthPct.toFixed(2)}%; min-width:5px;" title="item ${i+1} — peso ${inst.weights[i]}, valor ${inst.profits[i]}"></div>`);
+    }
+  }
+  itemsGrid.innerHTML = blocks.join('');
+  countLbl.textContent = count;
+  valueLbl.textContent = fmtInt(fVal);
+}
+
+function ensureChart(){
+  if (chart) { chart.destroy(); }
+  const ctx = document.getElementById('convChart').getContext('2d');
+  chart = new Chart(ctx, {
+    type:'line',
+    data:{ labels:[], datasets:[] },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      animation:false,
+      interaction:{ intersect:false, mode:'index' },
+      plugins:{
+        legend:{ display:true, position:'bottom', labels:{ font:{family:'Inter', size:12.5}, color:'#5B6479', usePointStyle:true } },
+        tooltip:{ enabled:true }
+      },
+      scales:{
+        x:{ title:{ display:true, text:'Iteração / Geração', color:'#5B6479', font:{size:12} },
+            ticks:{ color:'#5B6479', maxTicksLimit:8 }, grid:{ display:false } },
+        y:{ title:{ display:true, text:'Melhor valor encontrado', color:'#5B6479', font:{size:12} },
+            ticks:{ color:'#5B6479' }, grid:{ color:'#EEF1F8' } }
+      }
+    }
+  });
+}
+
+function subsampleFrames(len, maxFrames){
+  if (len <= maxFrames) return Array.from({length:len}, (_,i)=>i);
+  const frames = [];
+  for(let i=0;i<maxFrames;i++) frames.push(Math.round(i * (len-1) / (maxFrames-1)));
+  return [...new Set(frames)];
+}
+
+function setStatus(running){
+  els.bagStatus.textContent = running ? 'executando' : 'concluído';
+  els.bagStatus.className = 'status ' + (running ? 'running' : 'done');
+  els.chartStatus.textContent = running ? 'executando' : 'concluído';
+  els.chartStatus.className = 'status ' + (running ? 'running' : 'done');
+}
+
+async function animateRun(inst, results){
+  const myToken = ++animToken;
+  ensureChart();
+  renderBagsSkeleton();
+  setStatus(true);
+
+  const keys = Object.keys(results); // ['vns'] ou ['ag'] ou ['vns','ag']
+  const colors = { vns:'#1E2761', ag:'#E74C3C' };
+  const labels = { vns:'VNS', ag:'Algoritmo Genético' };
+
+  const maxLen = Math.max(...keys.map(k => results[k].history.length));
+  chart.data.labels = Array.from({length:maxLen}, (_,i)=>i);
+  chart.data.datasets = keys.map(k => ({
+    label:labels[k], data:[], borderColor:colors[k], backgroundColor:colors[k],
+    borderWidth:2.5, pointRadius:0, tension:0
+  }));
+  chart.update();
+
+  const frames = subsampleFrames(maxLen, 55);
+  const frameDelay = Math.max(16, Math.min(70, 2200 / frames.length));
+
+  for (const f of frames){
+    if (myToken !== animToken) return; // um novo run começou, aborta este
+    keys.forEach((k, di) => {
+      const hist = results[k].history;
+      const point = hist[Math.min(f, hist.length-1)];
+      chart.data.datasets[di].data[f] = point.fitness;
+      updateBag(inst, k, point.x, point.fitness);
+    });
+    chart.update('none');
+    await new Promise(r => setTimeout(r, frameDelay));
+  }
+
+  // frame final exato
+  keys.forEach((k, di) => {
+    const hist = results[k].history;
+    const last = hist[hist.length-1];
+    for(let i=0;i<maxLen;i++){
+      if (chart.data.datasets[di].data[i] === undefined){
+        const src = hist[Math.min(i, hist.length-1)];
+        chart.data.datasets[di].data[i] = src.fitness;
+      }
+    }
+    updateBag(inst, k, last.x, last.fitness);
+  });
+  chart.update('none');
+
+  setStatus(false);
+  renderStats(inst, results);
+}
+
+function renderStats(inst, results){
+  els.statOptimal.textContent = fmtInt(inst.optimal);
+
+  const keys = Object.keys(results);
+  if (keys.length === 1){
+    const k = keys[0];
+    const r = results[k];
+    const gap = 100 * (inst.optimal - r.bestFitness) / inst.optimal;
+    els.statFound.textContent = fmtInt(r.bestFitness);
+    els.statFoundSub.textContent = k === 'vns' ? 'VNS' : 'Algoritmo Genético';
+    els.statGap.textContent = gap.toFixed(2) + '%';
+    els.statGapSub.textContent = gap === 0 ? 'ótimo exato encontrado!' : 'distância até o ótimo';
+    els.statTime.textContent = r.time.toFixed(3) + 's';
+    els.statTimeSub.textContent = `${r.steps} ${k==='vns' ? 'iterações' : 'gerações'}`;
+  } else {
+    const r1 = results.vns, r2 = results.ag;
+    const g1 = 100*(inst.optimal-r1.bestFitness)/inst.optimal;
+    const g2 = 100*(inst.optimal-r2.bestFitness)/inst.optimal;
+    els.statFound.textContent = `${fmtInt(r1.bestFitness)} / ${fmtInt(r2.bestFitness)}`;
+    els.statFoundSub.textContent = 'VNS / AG';
+    els.statGap.textContent = `${g1.toFixed(2)}% / ${g2.toFixed(2)}%`;
+    els.statGapSub.textContent = 'VNS / AG';
+    els.statTime.textContent = `${r1.time.toFixed(3)}s / ${r2.time.toFixed(3)}s`;
+    els.statTimeSub.textContent = 'VNS / AG';
+  }
+}
+
+function run(){
+  const inst = INSTANCES[Number(els.instanceSelect.value)];
+  const seed = Number(els.seed.value) || 42;
+  const iterations = Number(els.iterations.value);
+  const kMax = Number(els.kMax.value);
+  const popSize = Number(els.popSize.value);
+
+  els.runBtn.disabled = true;
+  els.runBtn.textContent = '⏳ Executando...';
+
+  setTimeout(() => {
+    const results = {};
+    if (mode === 'vns' || mode === 'compare') results.vns = runVNS(inst, kMax, iterations, seed);
+    if (mode === 'ag' || mode === 'compare') results.ag = runGA(inst, popSize, iterations, seed);
+
+    animateRun(inst, results).then(() => {
+      els.runBtn.disabled = false;
+      els.runBtn.textContent = '▶ Executar';
+    });
+  }, 30);
+}
+
+els.runBtn.addEventListener('click', run);
+
+// estado inicial
+renderBagsSkeleton();
+ensureChart();
+</script>
+</body>
+</html>
