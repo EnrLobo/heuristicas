@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mochila 0/1 — VNS vs Algoritmo Genético</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.5.1/chart.umd.min.js"></script>
+<link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+
+<div class="app">
+  <!-- ===================== SIDEBAR ===================== -->
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="kicker">TRABALHO ACADÊMICO · BACKEND EM PYTHON</div>
+      <h1>Mochila 0/1<br>VNS vs Algoritmo Genético</h1>
+    </div>
+
+    <nav class="tabs" id="tabs">
+      <button data-tab="demo" class="active">Demonstração</button>
+      <button data-tab="experiments">Experimentos</button>
+    </nav>
+
+    <!-- ---- controles da aba Demonstracao ---- -->
+    <div id="panel-demo-controls">
+      <div class="field">
+        <label for="instanceSelect">Instância</label>
+        <select id="instanceSelect"></select>
+      </div>
+
+      <div class="field">
+        <label>Modo</label>
+        <div class="seg" id="modeSeg">
+          <button data-mode="vns" class="active">VNS</button>
+          <button data-mode="ag">AG</button>
+          <button data-mode="compare">Comparar</button>
+        </div>
+      </div>
+
+      <div class="algo-block vns" id="vnsControls">
+        <div class="tag">VNS — PARÂMETROS</div>
+        <div>
+          <div class="slider-row"><label>k_max (vizinhanças)</label><span class="val" id="kMaxVal">3</span></div>
+          <input type="range" id="kMax" min="2" max="6" step="1" value="3">
+        </div>
+      </div>
+
+      <div class="algo-block ag" id="agControls" style="display:none;">
+        <div class="tag">AG — PARÂMETROS</div>
+        <div>
+          <div class="slider-row"><label>Tamanho da população</label><span class="val" id="popSizeVal">50</span></div>
+          <input type="range" id="popSize" min="10" max="150" step="10" value="50">
+        </div>
+      </div>
+
+      <div class="field">
+        <div class="slider-row"><label>Iterações / Gerações</label><span class="val" id="iterVal">100</span></div>
+        <input type="range" id="iterations" min="20" max="300" step="10" value="100">
+      </div>
+
+      <div class="seed-row">
+        <div class="field">
+          <label for="seed">Semente aleatória</label>
+          <input type="number" id="seed" value="42">
+        </div>
+        <button class="dice" id="diceBtn" title="Sortear nova semente">🎲</button>
+      </div>
+
+      <button class="run-btn" id="runBtn">▶ Executar</button>
+    </div>
+
+    <!-- ---- controles da aba Experimentos ---- -->
+    <div id="panel-experiments-controls" style="display:none;">
+      <p class="side-copy">
+        Roda a bateria oficial do trabalho: <b>9 instâncias × 9 combinações de parâmetros × 3 sementes ×
+        2 algoritmos = 486 execuções</b>. São os mesmos números do relatório e da planilha entregues.
+      </p>
+      <button class="run-btn" id="runExperimentsBtn">▶ Rodar bateria completa</button>
+      <p class="side-hint" id="experimentsHint">Leva de 25 a 40 segundos.</p>
+    </div>
+
+    <div class="sidebar-foot">
+      Backend: Flask (Python) executando VNS e AG de verdade.<br>
+      Frontend: HTML/CSS/JS + Chart.js, consumindo a API via <code>fetch</code>.
+    </div>
+  </aside>
+
+  <!-- ===================== MAIN ===================== -->
+  <main>
+
+    <!-- ============ ABA: DEMONSTRAÇÃO ============ -->
+    <section id="panel-demo">
+      <div class="main-head">
+        <div class="eyebrow">PROBLEMA DA MOCHILA 0/1</div>
+        <h2>Painel de demonstração</h2>
+        <p>Escolha uma instância e os parâmetros ao lado, depois clique em Executar. O cálculo roda no
+          backend Python — o site só anima o resultado recebido.</p>
+      </div>
+
+      <div class="section">
+        <div class="section-title">Mochila <span class="status" id="bagStatus">aguardando</span></div>
+        <div class="bags single" id="bagsWrap">
+          <div class="empty-hint">Configure os parâmetros e clique em "Executar" para começar.</div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-title">Convergência <span class="status" id="chartStatus">—</span></div>
+        <div class="chart-card">
+          <div class="chart-wrap"><canvas id="convChart"></canvas></div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-title">Resultado</div>
+        <div class="stat-grid">
+          <div class="stat-card"><div class="label">Valor ótimo conhecido</div><div class="value" id="statOptimal">—</div><div class="sub">referência da literatura</div></div>
+          <div class="stat-card"><div class="label">Melhor valor encontrado</div><div class="value navy" id="statFound">—</div><div class="sub" id="statFoundSub">&nbsp;</div></div>
+          <div class="stat-card"><div class="label">Gap em relação ao ótimo</div><div class="value coral" id="statGap">—</div><div class="sub" id="statGapSub">&nbsp;</div></div>
+          <div class="stat-card"><div class="label">Tempo de execução</div><div class="value" id="statTime">—</div><div class="sub" id="statTimeSub">&nbsp;</div></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ ABA: EXPERIMENTOS ============ -->
+    <section id="panel-experiments" style="display:none;">
+      <div class="main-head">
+        <div class="eyebrow">PROTOCOLO EXPERIMENTAL DO TRABALHO</div>
+        <h2>Bateria completa de experimentos</h2>
+        <p>Reproduz ao vivo, no seu navegador, os 486 testes usados no relatório: 9 instâncias, 9 combinações
+          de parâmetros por algoritmo, 3 sementes cada.</p>
+      </div>
+
+      <div id="experimentsEmpty" class="empty-hint">
+        Clique em "Rodar bateria completa" na barra lateral para começar. Isso executa os 486 testes no
+        backend Python (leva alguns segundos) e monta os resultados abaixo.
+      </div>
+
+      <div id="experimentsResults" style="display:none;">
+        <div class="section">
+          <div class="section-title">Comparação geral</div>
+          <div class="chart-card">
+            <div class="chart-wrap small"><canvas id="overallChart"></canvas></div>
+          </div>
+          <div class="stat-grid" id="overallStats"></div>
+        </div>
+
+        <div class="section">
+          <div class="section-title">Resultado por instância</div>
+          <div class="table-card">
+            <table id="byInstanceTable">
+              <thead>
+                <tr>
+                  <th>Instância</th><th>Algoritmo</th><th>Ótimo</th>
+                  <th>Melhor encontrado</th><th>Gap médio</th><th>Tempo médio</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<script src="/static/js/app.js"></script>
+</body>
+</html>
